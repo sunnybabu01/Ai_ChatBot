@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Chatbot</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 500px;
+      height: 90vh;
+      background: #1e293b;
+      border-radius: 15px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+    }
+
+    .chat-box {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: 12px;
+      animation: fadeInUp 0.4s ease-in-out;
+    }
+
+    .message.bot { justify-content: flex-start; }
+    .message.user { justify-content: flex-end; }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin: 0 8px;
+    }
+
+    .bubble {
+      max-width: 70%;
+      padding: 12px 15px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.4;
+      animation: scaleUp 0.3s ease-in-out;
+    }
+
+    .bot .bubble {
+      background: #334155;
+      border-bottom-left-radius: 5px;
+    }
+
+    .user .bubble {
+      background: #4f46e5;
+      border-bottom-right-radius: 5px;
+    }
+
+    .chat-img {
+      max-width: 120px;
+      border-radius: 10px;
+      margin-top: 5px;
+    }
+
+    .input-area {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      background: #0f172a;
+      border-top: 1px solid #334155;
+    }
+
+    .input-area input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 20px;
+      outline: none;
+      background: #334155;
+      color: white;
+      font-size: 14px;
+    }
+
+    .input-area button, .input-area label {
+      margin-left: 8px;
+      background: #4f46e5;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .input-area button:hover, .input-area label:hover {
+      transform: scale(1.1);
+      background: #6366f1;
+    }
+
+    .input-area label {
+      cursor: pointer;
+    }
+
+    #imageInput {
+      display: none;
+    }
+
+   
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes scaleUp {
+      from { transform: scale(0.9); }
+      to { transform: scale(1); }
+    }
+
+    
+    .chat-box::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-box::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-box" id="chat"></div>
+
+    <div class="input-area">
+      <input type="text" id="userInput" placeholder="Type a message..." />
+      <label for="imageInput">📷</label>
+      <input type="file" id="imageInput" accept="image/*">
+      <button onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+
+  <script>
+    const API_KEY = "AIzaSyBJydOdRDWi5kjcmbTTgvqcEUpOdvs1mzE";
+    const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+    const chat = document.getElementById("chat");
+    let uploadedImageBase64 = null;
+
+    document.getElementById("imageInput").addEventListener("change", function() {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function() {
+          uploadedImageBase64 = reader.result.split(",")[1];
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function addMessage(text, sender, img=null) {
+      const div = document.createElement("div");
+      div.className = `message ${sender}`;
+
+      const avatar = document.createElement("img");
+      avatar.className = "avatar";
+      avatar.src = sender === "user" 
+        ? "https://cdn-icons-png.flaticon.com/512/847/847969.png" 
+        : "https://cdn-icons-png.flaticon.com/512/4712/4712100.png";
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+
+      div.appendChild(sender === "bot" ? avatar : bubble);
+      if (img) {
+        const imageEl = document.createElement("img");
+        imageEl.src = img;
+        imageEl.className = "chat-img";
+        bubble.appendChild(imageEl);
+      }
+      div.appendChild(sender === "bot" ? bubble : avatar);
+
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const userInput = document.getElementById("userInput").value.trim();
+      if (!userInput && !uploadedImageBase64) return;
+
+      addMessage(userInput || "(Image)", "user", uploadedImageBase64 ? "data:image/jpeg;base64,"+uploadedImageBase64 : null);
+      document.getElementById("userInput").value = "";
+
+      let parts = [];
+      if (userInput) parts.push({ text: userInput });
+      if (uploadedImageBase64) {
+        parts.push({
+          inline_data: {
+            mime_type: "image/jpeg",
+            data: uploadedImageBase64
+          }
+        });
+      }
+
+      let body = JSON.stringify({ contents: [{ parts }] });
+
+      uploadedImageBase64 = null;
+      document.getElementById("imageInput").value = "";
+
+      try {
+        const res = await fetch(`${API_URL}?key=${API_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body
+        });
+        const data = await res.json();
+        console.log(data);
+
+        let aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || "⚠️ No response from AI";
+        addMessage(aiResponse, "bot");
+      } catch (err) {
+        console.error(err);
+        addMessage("❌ Error calling API", "bot");
+      }
+    }
+
+   
+    document.getElementById("userInput").addEventListener("keypress", function(e) {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
